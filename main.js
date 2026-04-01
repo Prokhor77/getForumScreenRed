@@ -351,10 +351,10 @@ async function createScreenshots() {
     console.log('[FORUM] Не удалось получить ни одного скриншота форума. Отправляем сообщение в Telegram.');
     await sendTelegramMessage('Не удалось получить ни одного скриншота форума.');
   }
-  console.log('Создание скриншотов форума завершено');
+  console.log('Создание скриншотов форума завершено успешно');
 }
 
-/* async function createDatalensScreenshot() {
+/* async function createDatalensScreenshot() { ю
   console.log('==================');
   console.log('Запуск создания скриншота Datalens');
   console.log('Платформа:', process.platform, 'isLinux =', isLinux);
