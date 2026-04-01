@@ -1,0 +1,4 @@
+node_modules/
+cookies.json
+datalens_cookies.json
+*.log

@@ -1,0 +1,13 @@
+services:
+  forum-bot-red:
+    build: .
+    container_name: forum-get-screen-red
+    restart: unless-stopped
+    volumes:
+      # Куки сохраняются на хосте — не теряются при перезапуске
+      - ./cookies.json:/app/cookies.json
+    environment:
+      - TZ=Europe/Moscow
+    # Нужно для Puppeteer (sandbox отключён внутри Docker)
+    security_opt:
+      - seccomp:unconfined
