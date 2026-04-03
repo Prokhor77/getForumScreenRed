@@ -13,9 +13,7 @@ const COOKIES_FILE = path.join(__dirname, 'cookies.json');
 const TEMP_COOKIE_FILE = path.join(__dirname, 'cookie.txt');
 // const TEMP_DATALENS_COOKIE_FILE = path.join(__dirname, 'datalens_cookie.txt');
 
-// API ключи для загрузки изображений
-const IMGBB_API_KEY = '6090887c780d99638d99b78fc05b53ef';
-const IMGUR_CLIENT_ID = 'b00e7b9fbc8dc07';
+const IMAGEBAN_SECRET = 'he5r8UYDEf3vnEI3PmbeFivPN04sVjMwLax';
 
 // Определяем, запущено ли на Linux
 const isLinux = process.platform === 'linux';
@@ -109,103 +107,31 @@ function parseNetscapeCookies(content) {
   return cookies;
 }
 
-async function uploadToImgbb(base64Image) {
-  try {
-    console.log('[UPLOAD] Пытаюсь загрузить на ImgBB...');
-    const formData = new URLSearchParams();
-    formData.append('key', IMGBB_API_KEY);
-    formData.append('image', base64Image);
-    const response = await fetch('https://api.imgbb.com/1/upload', {
-      method: 'POST',
-      body: formData,
-    });
-  
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`ImgBB API Error: ${response.status} - ${errorText}`);
-      throw new Error(`Ошибка загрузки на ImgBB: ${response.status} - ${errorText}`);
-    }
-  
-    const data = await response.json();
-  
-    if (!data.success) {
-      console.error(`ImgBB API Error: ${data.error?.message || 'Unknown error'}`);
-      throw new Error(`Ошибка загрузки на ImgBB: ${data.error?.message || 'Unknown error'}`);
-    }
-  
-    console.log('[UPLOAD] Успешная загрузка на ImgBB:', data.data.url);
-    return data.data.url;
-  } catch (error) {
-    console.error('Ошибка при загрузке на ImgBB:', error);
-    throw error;
+async function uploadToImageban(base64Image) {
+  console.log('[UPLOAD] Загружаю на Imageban...');
+  const buffer = Buffer.from(base64Image, 'base64');
+  const form   = new FormData();
+  form.append('image', new Blob([buffer], { type: 'image/png' }), 'screenshot.png');
+  const response = await fetch('https://api.imageban.ru/v1', {
+    method:  'POST',
+    headers: { 'Authorization': `Bearer ${IMAGEBAN_SECRET}` },
+    body:    form,
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`Imageban API Error: ${response.status} - ${errorText}`);
+    throw new Error(`Ошибка загрузки на Imageban: ${response.status} - ${errorText}`);
   }
-}
-
-async function uploadToImgur(base64Image) {
-  try {
-    console.log('[UPLOAD] Пытаюсь загрузить на Imgur...');
-    const response = await fetch('https://api.imgur.com/3/image', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Client-ID ${IMGUR_CLIENT_ID}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        image: base64Image,
-        type: 'base64',
-        name: `screenshot_${Date.now()}.png`,
-        description: 'Screenshot from forum bot'
-      }),
-    });
-  
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Imgur API Error: ${response.status} - ${errorText}`);
-      throw new Error(`Ошибка загрузки на Imgur: ${response.status} - ${errorText}`);
-    }
-  
-    const data = await response.json();
-  
-    if (!data.success) {
-      console.error(`Imgur API Error: ${data.data?.error || 'Unknown error'}`);
-      throw new Error(`Ошибка загрузки на Imgur: ${data.data?.error || 'Unknown error'}`);
-    }
-  
-    console.log('[UPLOAD] Успешная загрузка на Imgur:', data.data.link);
-    return data.data.link;
-  } catch (error) {
-    console.error('Ошибка при загрузке на Imgur:', error);
-    throw error;
-  }
+  const data = await response.json();
+  if (!data.data?.link) throw new Error(`Imageban: неверный ответ — ${JSON.stringify(data)}`);
+  console.log('[UPLOAD] Imageban OK:', data.data.link);
+  return data.data.link;
 }
 
 async function uploadImage(base64Image) {
   const imageSize = Math.ceil((base64Image.length * 3) / 4);
   console.log(`Размер изображения: ${(imageSize / 1024 / 1024).toFixed(2)} MB`);
-
-  if (imageSize > 10 * 1024 * 1024) {
-    console.log('Изображение слишком большое для Imgur, используем только ImgBB');
-    try {
-      const url = await uploadToImgbb(base64Image);
-      return url;
-    } catch (error) {
-      console.error('[UPLOAD] Ошибка загрузки слишком большого изображения:', error.message);
-      throw new Error(`Изображение слишком большое (${(imageSize / 1024 / 1024).toFixed(2)} MB) для загрузки`);
-    }
-  }
-
-  try {
-    console.log('Попытка загрузки на ImgBB...');
-    return await uploadToImgbb(base64Image);
-  } catch (error) {
-    console.log('ImgBB не работает, пробуем Imgur...');
-    try {
-      return await uploadToImgur(base64Image);
-    } catch (imgurError) {
-      console.error('Оба сервиса недоступны:', error.message, imgurError.message);
-      throw new Error(`Не удалось загрузить изображение ни на ImgBB, ни на Imgur`);
-    }
-  }
+  return await uploadToImageban(base64Image);
 }
 
 async function makeScreenshot(page, url, index) {
@@ -817,8 +743,6 @@ const vkBot = spawn('node', [path.join(__dirname, 'vk_bot.js')], {
     ...process.env,
     TG_TOKEN:   TELEGRAM_TOKEN,
     TG_CHAT_ID: CHAT_ID,
-    IMGBB_KEY:  IMGBB_API_KEY,
-    IMGUR_ID:   IMGUR_CLIENT_ID,
   },
 });
 vkBot.on('error', (err) => console.error('[VK BOT] Ошибка запуска:', err.message));

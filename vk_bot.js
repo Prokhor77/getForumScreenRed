@@ -1,4 +1,4 @@
-// ====== VK БОТ: приём скриншотов → ImgBB → Telegram ======
+// ====== VK БОТ: приём скриншотов → Imageban → Telegram ======
 // Запуск: node vk_bot.js
 
 
@@ -10,8 +10,7 @@ const BOT_SCREEN_NAME = '@club226282989 '; // короткое имя для @у
 // Берём из окружения (передаёт main.js при запуске) либо из fallback-значений
 const TELEGRAM_TOKEN   = process.env.TG_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TG_CHAT_ID;
-const IMGBB_API_KEY    = process.env.IMGBB_KEY;
-const IMGUR_CLIENT_ID  = process.env.IMGUR_ID;
+const IMAGEBAN_SECRET  = 'he5r8UYDEf3vnEI3PmbeFivPN04sVjMwLax';
 
 // Доступные варианты времени отчёта
 const REPORT_TIMES = ['10:00', '13:00', '16:00', '19:00'];
@@ -106,37 +105,24 @@ async function downloadImageAsBase64(url) {
 }
 
 // ====== UPLOAD TO HOSTING ======
-async function uploadToImgbb(base64Image) {
-  const form = new URLSearchParams();
-  form.append('key', IMGBB_API_KEY);
-  form.append('image', base64Image);
-  const res  = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: form });
-  if (!res.ok) throw new Error(`ImgBB HTTP ${res.status}: ${await res.text()}`);
-  const data = await res.json();
-  if (!data.success) throw new Error(`ImgBB: ${data.error?.message || 'Unknown error'}`);
-  console.log('[UPLOAD] ImgBB OK:', data.data.url);
-  return data.data.url;
-}
-
-async function uploadToImgur(base64Image) {
-  const res = await fetch('https://api.imgur.com/3/image', {
+async function uploadToImageban(base64Image) {
+  const buffer = Buffer.from(base64Image, 'base64');
+  const form   = new FormData();
+  form.append('image', new Blob([buffer], { type: 'image/png' }), 'screenshot.png');
+  const res  = await fetch('https://api.imageban.ru/v1', {
     method:  'POST',
-    headers: { 'Authorization': `Client-ID ${IMGUR_CLIENT_ID}`, 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ image: base64Image, type: 'base64' }),
+    headers: { 'Authorization': `Bearer ${IMAGEBAN_SECRET}` },
+    body:    form,
   });
-  if (!res.ok) throw new Error(`Imgur HTTP ${res.status}: ${await res.text()}`);
+  if (!res.ok) throw new Error(`Imageban HTTP ${res.status}: ${await res.text()}`);
   const data = await res.json();
-  if (!data.success) throw new Error(`Imgur: ${data.data?.error || 'Unknown error'}`);
-  console.log('[UPLOAD] Imgur OK:', data.data.link);
+  if (!data.data?.link) throw new Error(`Imageban: неверный ответ — ${JSON.stringify(data)}`);
+  console.log('[UPLOAD] Imageban OK:', data.data.link);
   return data.data.link;
 }
 
 async function uploadImage(base64Image) {
-  try { return await uploadToImgbb(base64Image); }
-  catch (e) {
-    console.log('[UPLOAD] ImgBB failed, trying Imgur...', e.message);
-    return await uploadToImgur(base64Image);
-  }
+  return await uploadToImageban(base64Image);
 }
 
 // ====== TELEGRAM ======
