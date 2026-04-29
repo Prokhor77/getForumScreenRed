@@ -6,8 +6,10 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 // ====== НАСТРОЙКИ ======
-const TELEGRAM_TOKEN = '7428847499:AAGy5zYEU8vOtCHwOXr224xBBNLknfYgPvc';
-const CHAT_ID = '602064856';
+const TELEGRAM_TOKEN    = '7428847499:AAGy5zYEU8vOtCHwOXr224xBBNLknfYgPvc';
+const CHAT_ID           = '602064856';
+const VK_TOKEN          = 'vk1.a.wSn31eD2YZcLVyV_7kN9WSUBagj2XK0aJNlZDxG4Zza3oaWnnYh0N6UJuffdAQOwiDzJbFtsWwZKzUo0LceRzLz4wZ62D8m-8Tn4HBkbQGTUHG6Gm76ascgrvIdmEgBIPKvvPtEXBM9gazy31FXV-EnI_aM8yPswYb449sYk9YY-Ii6kU0wiokay3c0TqGfLNsNWTSaZUrbW0Tsw6I9u_w';
+const VK_DIRECT_PEER_ID = 345814069; // личка: https://vk.com/id345814069
 const COOKIES_FILE = path.join(__dirname, 'cookies.json');
 // const DATALENS_COOKIES_FILE = path.join(__dirname, 'datalens_cookies.json');
 const TEMP_COOKIE_FILE = path.join(__dirname, 'cookie.txt');
@@ -166,6 +168,23 @@ async function makeScreenshot(page, url, index) {
   return imageUrl;
 }
 
+async function sendVkDirectMessage(text) {
+  const url = new URL('https://api.vk.com/method/messages.send');
+  url.searchParams.set('access_token', VK_TOKEN);
+  url.searchParams.set('v', '5.131');
+  url.searchParams.set('peer_id', VK_DIRECT_PEER_ID);
+  url.searchParams.set('message', text);
+  url.searchParams.set('random_id', Date.now());
+  console.log('[VK DIRECT] Отправка сообщения в личку...');
+  const res = await fetch(url.toString());
+  const data = await res.json();
+  if (data.error) {
+    console.error('[VK DIRECT] Ошибка:', data.error.error_code, data.error.error_msg);
+  } else {
+    console.log('[VK DIRECT] Сообщение отправлено, message_id =', data.response);
+  }
+}
+
 async function sendTelegramMessage(text) {
   const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
   console.log('[TELEGRAM] Отправка сообщения:', text.slice(0, 120).replace(/\n/g, ' ') + (text.length > 120 ? '...' : ''));
@@ -271,11 +290,11 @@ async function createScreenshots() {
     for (let i = 0; i < screenshotLinks.length; i++) {
       message += `${descriptions[i]}${screenshotLinks[i]}\n`;
     }
-    console.log('[FORUM] Отправка сообщения со ссылками на скриншоты в Telegram...');
-    await sendTelegramMessage(message);
+    console.log('[FORUM] Отправка сообщения со ссылками на скриншоты в VK личку...');
+    await sendVkDirectMessage(message);
   } else {
-    console.log('[FORUM] Не удалось получить ни одного скриншота форума. Отправляем сообщение в Telegram.');
-    await sendTelegramMessage('Не удалось получить ни одного скриншота форума.');
+    console.log('[FORUM] Не удалось получить ни одного скриншота форума. Отправляем сообщение в VK личку.');
+    await sendVkDirectMessage('Не удалось получить ни одного скриншота форума.');
   }
   console.log('Создание скриншотов форума завершено успешно');
 }

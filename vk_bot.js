@@ -138,7 +138,8 @@ async function sendTelegramMessage(text) {
 }
 
 // ====== CHAT TITLE CHECK ======
-const ALLOWED_CHAT_TITLE = 'RED || Отчеты';
+const ALLOWED_CHAT_TITLE  = 'RED || Отчеты';
+const VK_DIRECT_PEER_ID   = 345814069; // личка: https://vk.com/id345814069
 
 async function getChatTitle(peerId) {
   try {
@@ -283,23 +284,23 @@ async function finalizeSession(key) {
   if (!session) return;
   clearSession(key);
 
-  await sendToTelegram(session);
+  await sendToVkDirect(session);
   await sendVkMessage(session.peerId, '✅ Все скриншоты загружены и отправлены!');
 }
 
-async function sendToTelegram(session) {
+async function sendToVkDirect(session) {
   const date = todayString();
   const lines = [
-    `<b>${date}</b>`,
-    `<b>${session.reportTime}</b>`,
-    ``,
-    ...session.photos.map((u, i) => `${u}`),
+    date,
+    session.reportTime,
+    '',
+    ...session.photos,
   ];
   try {
-    await sendTelegramMessage(lines.join('\n'));
-    console.log('[TELEGRAM] Отчёт отправлен. Дата:', date, 'Время:', session.reportTime);
+    await sendVkMessage(VK_DIRECT_PEER_ID, lines.join('\n'));
+    console.log('[VK DIRECT] Отчёт отправлен в личку. Дата:', date, 'Время:', session.reportTime);
   } catch (e) {
-    console.error('[TELEGRAM] Ошибка отправки:', e.message);
+    console.error('[VK DIRECT] Ошибка отправки:', e.message);
   }
 }
 
